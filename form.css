@@ -37,8 +37,8 @@
       gap: .55rem;
     }
     .brand img {
-      width: 44px;
-      height: 50px;
+      width: 56px;
+      height: 78px;
       object-fit: contain;
       flex-shrink: 0;
     }
@@ -185,7 +185,7 @@
       body { line-height: 1.28; }
       header { padding: .35rem .5rem; }
       .brand { gap: .4rem; }
-      .brand img { width: 32px; height: 36px; }
+      .brand img { width: 40px; height: 56px; }
       header h1 { font-size: .95rem; }
       header .sub { font-size: .68rem; }
       header .clinic { font-size: .55rem; letter-spacing: .06em; }
