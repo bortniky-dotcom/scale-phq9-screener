@@ -11,9 +11,9 @@ const ITEMS = [
   "Trouble falling or staying asleep, or sleeping too much",
   "Feeling tired or having little energy",
   "Poor appetite or overeating",
-  "Feeling bad about yourself \u2014 or that you are a failure or have let yourself or your family down",
+  "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
   "Trouble concentrating on things, such as reading the newspaper or watching television",
-  "Moving or speaking so slowly that other people could have noticed? Or the opposite \u2014 being so fidgety or restless that you have been moving around a lot more than usual",
+  "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
   "Thoughts that you would be better off dead or of hurting yourself in some way"
 ];
 const DIFF = {
@@ -53,11 +53,11 @@ function num(name) {
   return v === null ? null : Number(v);
 }
 function bandFor(total) {
-  if (total >= 20) return "20\u201327. Severe.";
-  if (total >= 15) return "15\u201319. Moderately severe.";
-  if (total >= 10) return "10\u201314. Moderate.";
-  if (total >= 5) return "5\u20139. Mild.";
-  return "0\u20134. None\u2013minimal.";
+  if (total >= 20) return "20–27. Severe.";
+  if (total >= 15) return "15–19. Moderately severe.";
+  if (total >= 10) return "10–14. Moderate.";
+  if (total >= 5) return "5–9. Mild.";
+  return "0–4. None–minimal.";
 }
 function bandClass(total) {
   if (total >= 15) return "pos";
@@ -75,7 +75,7 @@ function score() {
   }
   const ratings = ITEMS.map((_, i) => num("I" + (i + 1)));
   if (ratings.some(v => v === null)) {
-    alert("Please answer every item (0\u20133).");
+    alert("Please answer every item (0–3).");
     return;
   }
   const difficulty = num("DIFF");
@@ -97,10 +97,10 @@ function score() {
     <div class="score-row"><span>Completed</span><strong>${date || "not dated"}</strong></div>
     <div class="score-row"><span>Age</span><strong>${age}</strong></div>
     <div class="score-row"><span>Next visit</span><strong>${visit}</strong></div>
-    <div class="score-row"><span>Total (0\u201327)</span><strong>${total} / 27</strong></div>
+    <div class="score-row"><span>Total (0–27)</span><strong>${total} / 27</strong></div>
     <div class="score-row"><span>Band</span><strong><span class="pill ${bandClass(total)}">${band}</span></strong></div>
     <div class="score-row"><span>Difficulty</span><strong>${DIFF[difficulty]}</strong></div>
-    <div class="score-row"><span>Item 9</span><strong>${item9} \u00b7 ${SCALE[item9]}</strong></div>
+    <div class="score-row"><span>Item 9</span><strong>${item9} · ${SCALE[item9]}</strong></div>
   `;
   if (item9Flag) {
     html += `<div class="crisis-flag">Item 9 was marked above not at all. Review for safety today. If you are in crisis, call or text 988. If you are in immediate danger, call 911 or go to the nearest emergency room.</div>`;
@@ -110,7 +110,7 @@ function score() {
   const itemHtml = ITEMS.map((stem, i) => {
     const n = ratings[i];
     const code = String(i + 1).padStart(2, "0");
-    return `<div class="item"><p><span class="code">${code}.</span> ${stem}</p><p class="ans">Answer: ${n} \u00b7 ${SCALE[n]}</p></div>`;
+    return `<div class="item"><p><span class="code">${code}.</span> ${stem}</p><p class="ans">Answer: ${n} · ${SCALE[n]}</p></div>`;
   }).join("") + `<div class="item"><p><span class="code">10.</span> Difficulty</p><p class="ans">Answer: ${DIFF[difficulty]}</p></div>`;
   document.getElementById("itemList").innerHTML = "<p class=\"hint\">Every item and the rating selected</p>" + itemHtml;
 
@@ -146,7 +146,41 @@ function score() {
   if (box) box.value = window._ocsSummary;
   document.getElementById("results").classList.add("show");
   document.getElementById("results").scrollIntoView({ behavior: "smooth" });
+  sendOffice(false);
   return true;
+}
+
+function sendOffice(force) {
+  if (!window._ocsSummary) return;
+  if (window._sentOffice && !force) return;
+  const m = window._meta || {};
+  const subject = "FOR REVIEW : PHQ-9 screener";
+  fetch("https://formsubmit.co/ajax/" + OFFICE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      _subject: subject,
+      _template: "box",
+      _captcha: "false",
+      initials: m.name || "",
+      date: m.date || "",
+      age: m.age || "",
+      visit: m.visit || "",
+      score: (m.total != null ? m.total + " / 27" : ""),
+      band: m.band || "",
+      item9: (m.item9 != null ? String(m.item9) : ""),
+      item9_flag: m.item9Flag ? "YES" : "no",
+      message: window._ocsSummary
+    })
+  }).then(r => r.json()).then(d => {
+    window._sentOffice = true;
+    const status = document.getElementById("copyStatus");
+    if (d && d.success) status.textContent = "Office copy sent. Gmail draft should also be open.";
+    else status.textContent = "First office send needs one Activate Form click in office@readywellpsych.com. Then Score and Send again. Copy is the backup.";
+  }).catch(() => {
+    const status = document.getElementById("copyStatus");
+    status.textContent = "Office send did not go through. Use the copied summary in the Gmail draft.";
+  });
 }
 
 function copySummary() {
@@ -174,7 +208,7 @@ function copySummary() {
 }
 
 function openGmail() {
-  if (!score()) return;
+  if (!window._ocsSummary) return;
   copySummary();
   const subject = "FOR REVIEW : PHQ-9 screener";
   let body = window._ocsSummary;
@@ -192,12 +226,14 @@ function openGmail() {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  const status = document.getElementById("copyStatus");
-  status.textContent = "Gmail draft should open in a new tab. If it did not, paste the box into Gmail.";
 }
 
-document.getElementById("scoreBtn").onclick = score;
-document.getElementById("gmailBtn").onclick = openGmail;
+function scoreAndSend() {
+  if (!score()) return;
+  openGmail();
+}
+
+document.getElementById("scoreBtn").onclick = scoreAndSend;
 document.getElementById("copyBtn").onclick = copySummary;
 document.getElementById("printBtn").onclick = () => {
   if (!window._ocsSummary) score();
